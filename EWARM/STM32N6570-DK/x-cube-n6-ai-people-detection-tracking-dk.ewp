@@ -366,6 +366,7 @@
                 <option>
                     <name>CCIncludePath2</name>
                     <state>$PROJ_DIR$\..\..\Inc</state>
+                    <state>$PROJ_DIR$\..\..\Model\STM32N6570-DK</state>
                     <state>$PROJ_DIR$\..\..\STM32Cube_FW_N6\Drivers\STM32N6xx_HAL_Driver\Inc</state>
                     <state>$PROJ_DIR$\..\..\STM32Cube_FW_N6\Drivers\STM32N6xx_HAL_Driver\Inc\Legacy</state>
                     <state>$PROJ_DIR$\..\..\STM32Cube_FW_N6\Drivers\CMSIS\Device\ST\STM32N6xx\Include</state>
@@ -679,6 +680,7 @@
                 <option>
                     <name>AUserIncludes</name>
                     <state>$PROJ_DIR$\..\..\Inc</state>
+                    <state>$PROJ_DIR$\..\..\Model\STM32N6570-DK</state>
                     <state>$PROJ_DIR$\..\..\STM32Cube_FW_N6\Drivers\STM32N6xx_HAL_Driver\Inc</state>
                     <state>$PROJ_DIR$\..\..\STM32Cube_FW_N6\Drivers\STM32N6xx_HAL_Driver\Inc\Legacy</state>
                     <state>$PROJ_DIR$\..\..\STM32Cube_FW_N6\Drivers\CMSIS\Device\ST\STM32N6xx\Include</state>
@@ -895,7 +897,7 @@
                 </option>
                 <option>
                     <name>IlinkAdditionalLibs</name>
-                    <state>$PROJ_DIR$\..\..\Lib\AI_Runtime\Lib\ABI2.1\ARMCortexM55\NetworkRuntime1010_CM55_IAR.a</state>
+                    <state>$PROJ_DIR$\..\..\Lib\AI_Runtime\Lib\ABI2.1\ARMCortexM55\NetworkRuntime1020_CM55_IAR.a</state>
                     <state>$PROJ_DIR$\..\..\Lib\Camera_Middleware\ISP_Library\evision\Lib\libn6-evision-awb_iar.a</state>
                     <state>$PROJ_DIR$\..\..\Lib\Camera_Middleware\ISP_Library\evision\Lib\libn6-evision-st-ae_iar.a</state>
                 </option>
@@ -1203,13 +1205,31 @@
                 <name>$PROJ_DIR$\..\..\Lib\ai-postprocessing-wrapper\app_postprocess_mpe_yolo_v8_uf.c</name>
             </file>
             <file>
+                <name>$PROJ_DIR$\..\..\Lib\ai-postprocessing-wrapper\app_postprocess_mpe_yolo_v8_ui.c</name>
+            </file>
+            <file>
+                <name>$PROJ_DIR$\..\..\Lib\ai-postprocessing-wrapper\app_postprocess_od_fd_blazeface_uf.c</name>
+            </file>
+            <file>
+                <name>$PROJ_DIR$\..\..\Lib\ai-postprocessing-wrapper\app_postprocess_od_fd_blazeface_ui.c</name>
+            </file>
+            <file>
+                <name>$PROJ_DIR$\..\..\Lib\ai-postprocessing-wrapper\app_postprocess_od_fd_blazeface_uu.c</name>
+            </file>
+            <file>
                 <name>$PROJ_DIR$\..\..\Lib\ai-postprocessing-wrapper\app_postprocess_od_st_ssd_uf.c</name>
             </file>
             <file>
                 <name>$PROJ_DIR$\..\..\Lib\ai-postprocessing-wrapper\app_postprocess_od_st_yolox_uf.c</name>
             </file>
             <file>
+                <name>$PROJ_DIR$\..\..\Lib\ai-postprocessing-wrapper\app_postprocess_od_st_yolox_ui.c</name>
+            </file>
+            <file>
                 <name>$PROJ_DIR$\..\..\Lib\ai-postprocessing-wrapper\app_postprocess_od_yolov2_uf.c</name>
+            </file>
+            <file>
+                <name>$PROJ_DIR$\..\..\Lib\ai-postprocessing-wrapper\app_postprocess_od_yolov2_ui.c</name>
             </file>
             <file>
                 <name>$PROJ_DIR$\..\..\Lib\ai-postprocessing-wrapper\app_postprocess_od_yolov5_uu.c</name>
@@ -1224,7 +1244,13 @@
                 <name>$PROJ_DIR$\..\..\Lib\ai-postprocessing-wrapper\app_postprocess_spe_movenet_uf.c</name>
             </file>
             <file>
+                <name>$PROJ_DIR$\..\..\Lib\ai-postprocessing-wrapper\app_postprocess_spe_movenet_ui.c</name>
+            </file>
+            <file>
                 <name>$PROJ_DIR$\..\..\Lib\ai-postprocessing-wrapper\app_postprocess_sseg_deeplab_v3_uf.c</name>
+            </file>
+            <file>
+                <name>$PROJ_DIR$\..\..\Lib\ai-postprocessing-wrapper\app_postprocess_sseg_deeplab_v3_ui.c</name>
             </file>
             <file>
                 <name>$PROJ_DIR$\..\..\Lib\ai-postprocessing-wrapper\app_postprocess_template.c</name>
@@ -1446,9 +1472,12 @@
     </group>
     <group>
         <name>Model</name>
-        <file>
-            <name>$PROJ_DIR$\..\..\Model\network.c</name>
-        </file>
+        <group>
+            <name>STM32N6570-DK</name>
+            <file>
+                <name>$PROJ_DIR$\..\..\Model\STM32N6570-DK\network.c</name>
+            </file>
+        </group>
     </group>
     <group>
         <name>Src</name>
@@ -1472,6 +1501,9 @@
         </file>
         <file>
             <name>$PROJ_DIR$\..\..\Src\stm32n6xx_it.c</name>
+        </file>
+        <file>
+            <name>$PROJ_DIR$\..\..\Src\utils.c</name>
         </file>
     </group>
     <group>

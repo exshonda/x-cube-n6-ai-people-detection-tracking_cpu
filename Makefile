@@ -50,14 +50,11 @@ BUILD_DIR = build
 # C sources
 C_SOURCES += Src/main.c
 C_SOURCES += Src/app.c
+C_SOURCES += Src/utils.c
 C_SOURCES += Src/app_fuseprogramming.c
 C_SOURCES += Src/stm32_lcd_ex.c
 C_SOURCES += Src/stm32n6xx_it.c
-ifeq ($(call is_nucleo),1)
-C_SOURCES += Model/nucleo/network.c
-else
-C_SOURCES += Model/network.c
-endif
+C_SOURCES += Model/$(BOARD)/network.c
 C_SOURCES += Src/app_cam.c
 C_SOURCES += Src/freertos_bsp.c
 
@@ -117,7 +114,7 @@ C_DEFS += -DTX_MAX_PARALLEL_NETWORKS=1
 
 # C includes
 # Patched files
-C_INCLUDES += -IInc
+C_INCLUDES += -IInc -IModel/$(BOARD)
 
 
 ASFLAGS = $(MCU) $(AS_DEFS) $(AS_INCLUDES) $(OPT) -Wall -fstack-usage -fdata-sections -ffunction-sections -fcyclomatic-complexity

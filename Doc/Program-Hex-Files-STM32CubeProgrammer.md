@@ -1,6 +1,6 @@
 # How to Program Hex Files
 
-0. Ensure the board is in dev mode (boot switch in dev mode position).
+0. Set both switches/jumpers in dev mode position.
 1. Open STM32CubeProgrammer.
 2. Select the Disco board through the "External loaders" tab.
 3. ST-Link configuration: set mode to "Hot plug".

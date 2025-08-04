@@ -57,18 +57,9 @@
 #ifdef STM32N6570_DK_REV
 #define NN_WIDTH 480
 #define NN_HEIGHT 480
- /* set number of outputs and define NN_OUTx_SIZE in bytes for x from 0 to (NN_OUT_NB - 1) */
-#define NN_OUT_NB                                 3
-#define NN_OUT0_SIZE                              (15 * 15 * 18 * 4)
-#define NN_OUT1_SIZE                              (60 * 60 * 18 * 4)
-#define NN_OUT2_SIZE                              (30 * 30 * 18 * 4)
 #else
 #define NN_WIDTH 224
 #define NN_HEIGHT 224
- /* set number of outputs and define NN_OUTx_SIZE in bytes for x from 0 to (NN_OUT_NB - 1) */
-#define NN_OUT_NB                                 1
-#define NN_OUT0_SIZE                              5880
-
 #endif
 
 #define NN_FORMAT DCMIPP_PIXEL_PACKER_FORMAT_RGB888_YUV444_1

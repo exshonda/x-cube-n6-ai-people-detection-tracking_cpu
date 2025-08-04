@@ -24,7 +24,6 @@
 #include "app_config.h"
 #include "app_postprocess.h"
 #include "isp_api.h"
-#include "ll_aton_runtime.h"
 #include "cmw_camera.h"
 #include "scrl.h"
 #include "stm32_lcd.h"
@@ -41,6 +40,7 @@
 #ifdef TRACKER_MODULE
 #include "tracker.h"
 #endif
+#include "network.h"
 #include "utils.h"
 
 #define FREERTOS_PRIORITY(p) ((UBaseType_t)((int)tskIDLE_PRIORITY + configMAX_PRIORITIES / 2 + (p)))
@@ -53,26 +53,37 @@
 
 #define ALIGN_VALUE(_v_,_a_) (((_v_) + (_a_) - 1) & ~((_a_) - 1))
 
-#define NN_OUT_MAX_NB 4
+#define NN_OUT_NB LL_ATON_DEFAULT_OUT_NUM
+
 #define NN_OUT_MAX_NB 4
 #if NN_OUT_NB > NN_OUT_MAX_NB
 #error "max output buffer reached"
 #endif
 
-/* define default 0 value for NN_OUTx_SIZE for [1:NN_OUT_MAX_NB[ */
-#ifndef NN_OUT1_SIZE
+#define NN_OUT0_SIZE LL_ATON_DEFAULT_OUT_1_SIZE_BYTES
+#define NN_OUT0_SIZE_ALIGN ALIGN_VALUE(NN_OUT0_SIZE, LL_ATON_DEFAULT_OUT_1_ALIGNMENT)
+#ifdef LL_ATON_DEFAULT_OUT_2_SIZE_BYTES
+#define NN_OUT1_SIZE LL_ATON_DEFAULT_OUT_2_SIZE_BYTES
+#define NN_OUT1_SIZE_ALIGN ALIGN_VALUE(NN_OUT1_SIZE, LL_ATON_DEFAULT_OUT_2_ALIGNMENT)
+#else
 #define NN_OUT1_SIZE 0
+#define NN_OUT1_SIZE_ALIGN 0
 #endif
-#ifndef NN_OUT2_SIZE
+#ifdef LL_ATON_DEFAULT_OUT_3_SIZE_BYTES
+#define NN_OUT2_SIZE LL_ATON_DEFAULT_OUT_3_SIZE_BYTES
+#define NN_OUT2_SIZE_ALIGN ALIGN_VALUE(NN_OUT2_SIZE, LL_ATON_DEFAULT_OUT_3_ALIGNMENT)
+#else
 #define NN_OUT2_SIZE 0
+#define NN_OUT2_SIZE_ALIGN 0
 #endif
-#ifndef NN_OUT3_SIZE
+#ifdef LL_ATON_DEFAULT_OUT_4_SIZE_BYTES
+#define NN_OUT3_SIZE LL_ATON_DEFAULT_OUT_4_SIZE_BYTES
+#define NN_OUT3_SIZE_ALIGN ALIGN_VALUE(NN_OUT3_SIZE, LL_ATON_DEFAULT_OUT_4_ALIGNMENT)
+#else
 #define NN_OUT3_SIZE 0
+#define NN_OUT3_SIZE_ALIGN 0
 #endif
-#define NN_OUT0_SIZE_ALIGN ALIGN_VALUE(NN_OUT0_SIZE, 32)
-#define NN_OUT1_SIZE_ALIGN ALIGN_VALUE(NN_OUT1_SIZE, 32)
-#define NN_OUT2_SIZE_ALIGN ALIGN_VALUE(NN_OUT2_SIZE, 32)
-#define NN_OUT3_SIZE_ALIGN ALIGN_VALUE(NN_OUT3_SIZE, 32)
+
 #define NN_OUT_BUFFER_SIZE (NN_OUT0_SIZE_ALIGN + NN_OUT1_SIZE_ALIGN + NN_OUT2_SIZE_ALIGN + NN_OUT3_SIZE_ALIGN)
 
 #define LCD_FG_WIDTH LCD_BG_WIDTH
@@ -634,8 +645,8 @@ static void Display_NetworkOutput(display_info_t *info)
 
 static void nn_thread_fct(void *arg)
 {
-  const LL_Buffer_InfoTypeDef *nn_out_info = LL_ATON_Output_Buffers_Info_Default();
-  const LL_Buffer_InfoTypeDef *nn_in_info = LL_ATON_Input_Buffers_Info_Default();
+  const LL_Buffer_InfoTypeDef *nn_out_info = LL_ATON_Output_Buffers_Info(&NN_Instance_Default);
+  const LL_Buffer_InfoTypeDef *nn_in_info = LL_ATON_Input_Buffers_Info(&NN_Instance_Default);
   uint32_t nn_period_ms;
   uint32_t nn_period[2];
   uint8_t *nn_pipe_dst;
@@ -644,6 +655,11 @@ static void nn_thread_fct(void *arg)
   uint32_t ts;
   int ret;
   int i;
+
+  /* Initialize Cube.AI/ATON ... */
+  LL_ATON_RT_RuntimeInit();
+  /* ... and model instance */
+  LL_ATON_RT_Init_Network(&NN_Instance_Default);
 
   /* setup buffers size */
   nn_in_len = LL_Buffer_len(&nn_in_info[0]);
@@ -687,7 +703,7 @@ static void nn_thread_fct(void *arg)
       ret = LL_ATON_Set_User_Output_Buffer_Default(i, out[i], nn_out_len_user[i]);
       assert(ret == LL_ATON_User_IO_NOERROR);
     }
-    LL_ATON_RT_Main(&NN_Instance_Default);
+    Run_Inference(&NN_Instance_Default);
     inf_ms = HAL_GetTick() - ts;
 
     /* release buffers */
@@ -785,13 +801,13 @@ static int app_tracking(od_pp_out_t *pp)
 static void pp_thread_fct(void *arg)
 {
 #if POSTPROCESS_TYPE == POSTPROCESS_OD_YOLO_V2_UF
-  yolov2_pp_static_param_t pp_params;
+  od_yolov2_pp_static_param_t pp_params;
 #elif POSTPROCESS_TYPE == POSTPROCESS_OD_YOLO_V5_UU
-  yolov5_pp_static_param_t pp_params;
+  od_yolov5_pp_static_param_t pp_params;
 #elif POSTPROCESS_TYPE == POSTPROCESS_OD_YOLO_V8_UF || POSTPROCESS_TYPE == POSTPROCESS_OD_YOLO_V8_UI
-  yolov8_pp_static_param_t pp_params;
+  od_yolov8_pp_static_param_t pp_params;
 #elif POSTPROCESS_TYPE == POSTPROCESS_OD_ST_YOLOX_UF
-  st_yolox_pp_static_param_t pp_params;
+  od_st_yolox_pp_static_param_t pp_params;
 #else
     #error "PostProcessing type not supported"
 #endif
@@ -804,7 +820,7 @@ static void pp_thread_fct(void *arg)
 
   (void)tracking_enabled;
   /* setup post process */
-  app_postprocess_init(&pp_params);
+  app_postprocess_init(&pp_params, &NN_Instance_Default);
   while (1)
   {
     uint8_t *output_buffer;
