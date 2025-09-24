@@ -15,7 +15,9 @@ _Min_Stack_Size = 0x1000; /* required amount of stack */
 MEMORY
 {
   AXISRAM1_2_S (xrw) : ORIGIN = 0x34000400, LENGTH =  2047K
+/*  AXISRAM1_2_S (xrw) : ORIGIN = 0x34000400, LENGTH =  3932K */
   PSRAM (xrw)      : ORIGIN = 0x91000000, LENGTH =  16M
+  AXISRAM3_6_S (xrw) : ORIGIN = 0x34200000, LENGTH =  1835K
 }
 
 /* Sections */
@@ -151,6 +153,13 @@ SECTIONS
     . = . + _Min_Stack_Size;
     . = ALIGN(8);
   } >AXISRAM1_2_S
+
+  .npuram_section (NOLOAD):
+  {
+     . = ALIGN(32);
+    *(.npuram_bss)
+    . = ALIGN(32);
+  } >AXISRAM3_6_S
 
   .psram_section (NOLOAD):
   {

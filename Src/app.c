@@ -41,6 +41,7 @@
 #include "tracker.h"
 #endif
 #include "network.h"
+#include "network_data.h"
 #include "utils.h"
 
 #define FREERTOS_PRIORITY(p) ((UBaseType_t)((int)tskIDLE_PRIORITY + configMAX_PRIORITIES / 2 + (p)))
@@ -53,32 +54,32 @@
 
 #define ALIGN_VALUE(_v_,_a_) (((_v_) + (_a_) - 1) & ~((_a_) - 1))
 
-#define NN_OUT_NB LL_ATON_DEFAULT_OUT_NUM
+#define NN_OUT_NB AI_NETWORK_OUT_NUM
 
 #define NN_OUT_MAX_NB 4
 #if NN_OUT_NB > NN_OUT_MAX_NB
 #error "max output buffer reached"
 #endif
 
-#define NN_OUT0_SIZE LL_ATON_DEFAULT_OUT_1_SIZE_BYTES
-#define NN_OUT0_SIZE_ALIGN ALIGN_VALUE(NN_OUT0_SIZE, LL_ATON_DEFAULT_OUT_1_ALIGNMENT)
-#ifdef LL_ATON_DEFAULT_OUT_2_SIZE_BYTES
-#define NN_OUT1_SIZE LL_ATON_DEFAULT_OUT_2_SIZE_BYTES
-#define NN_OUT1_SIZE_ALIGN ALIGN_VALUE(NN_OUT1_SIZE, LL_ATON_DEFAULT_OUT_2_ALIGNMENT)
+#define NN_OUT0_SIZE AI_NETWORK_OUT_1_SIZE_BYTES
+#define NN_OUT0_SIZE_ALIGN ALIGN_VALUE(NN_OUT0_SIZE, 32)
+#ifdef AI_NETWORK_OUT_2_SIZE_BYTES
+#define NN_OUT1_SIZE AI_NETWORK_OUT_2_SIZE_BYTES
+#define NN_OUT1_SIZE_ALIGN ALIGN_VALUE(NN_OUT1_SIZE, 32)
 #else
 #define NN_OUT1_SIZE 0
 #define NN_OUT1_SIZE_ALIGN 0
 #endif
-#ifdef LL_ATON_DEFAULT_OUT_3_SIZE_BYTES
-#define NN_OUT2_SIZE LL_ATON_DEFAULT_OUT_3_SIZE_BYTES
-#define NN_OUT2_SIZE_ALIGN ALIGN_VALUE(NN_OUT2_SIZE, LL_ATON_DEFAULT_OUT_3_ALIGNMENT)
+#ifdef AI_NETWORK_OUT_3_SIZE_BYTES
+#define NN_OUT2_SIZE AI_NETWORK_OUT_3_SIZE_BYTES
+#define NN_OUT2_SIZE_ALIGN ALIGN_VALUE(NN_OUT2_SIZE, 32)
 #else
 #define NN_OUT2_SIZE 0
 #define NN_OUT2_SIZE_ALIGN 0
 #endif
-#ifdef LL_ATON_DEFAULT_OUT_4_SIZE_BYTES
-#define NN_OUT3_SIZE LL_ATON_DEFAULT_OUT_4_SIZE_BYTES
-#define NN_OUT3_SIZE_ALIGN ALIGN_VALUE(NN_OUT3_SIZE, LL_ATON_DEFAULT_OUT_4_ALIGNMENT)
+#ifdef AI_NETWORK_OUT_4_SIZE_BYTES
+#define NN_OUT3_SIZE AI_NETWORK_OUT_4_SIZE_BYTES
+#define NN_OUT3_SIZE_ALIGN ALIGN_VALUE(NN_OUT3_SIZE, 32)
 #else
 #define NN_OUT3_SIZE 0
 #define NN_OUT3_SIZE_ALIGN 0
@@ -212,7 +213,7 @@ static cpuload_info_t cpu_load;
 static uint8_t screen_buffer[LCD_BG_WIDTH * LCD_BG_HEIGHT * 2] ALIGN_32 IN_PSRAM;
 
 /* model */
-LL_ATON_DECLARE_NAMED_NN_INSTANCE_AND_INTERFACE(Default);
+//LL_ATON_DECLARE_NAMED_NN_INSTANCE_AND_INTERFACE(Default);
  /* nn input buffers */
 static uint8_t nn_input_buffers[2][NN_WIDTH * NN_HEIGHT * NN_BPP] ALIGN_32 IN_PSRAM;
 static bqueue_t nn_input_queue;
@@ -643,10 +644,30 @@ static void Display_NetworkOutput(display_info_t *info)
     Display_NetworkOutput_NoTracking(info);
 }
 
+/* Global handle to reference the instantiated C-model */
+static ai_handle network = AI_HANDLE_NULL;
+
+/* Global c-array to handle the activations buffer(s) */
+__attribute__ ((section (".npuram_bss")))
+__attribute__ ((aligned (32)))
+AI_ALIGNED(32) static ai_u8 activations_1[AI_NETWORK_DATA_ACTIVATION_1_SIZE];
+
+/* Array to store the data of the input tensors */
+AI_ALIGNED(32) static ai_i8 data_in_1[AI_NETWORK_IN_1_SIZE_BYTES];
+
+/* Array to store the data of the output tensors */
+AI_ALIGNED(32) static ai_i8 data_out_1[AI_NETWORK_OUT_1_SIZE_BYTES];
+AI_ALIGNED(32) static ai_i8 data_out_2[AI_NETWORK_OUT_2_SIZE_BYTES];
+AI_ALIGNED(32) static ai_i8 data_out_3[AI_NETWORK_OUT_3_SIZE_BYTES];
+
+/* Array of pointer to manage the model's input/output tensors */
+static ai_buffer *ai_input;
+static ai_buffer *ai_output;
+
 static void nn_thread_fct(void *arg)
 {
-  const LL_Buffer_InfoTypeDef *nn_out_info = LL_ATON_Output_Buffers_Info(&NN_Instance_Default);
-  const LL_Buffer_InfoTypeDef *nn_in_info = LL_ATON_Input_Buffers_Info(&NN_Instance_Default);
+//  const LL_Buffer_InfoTypeDef *nn_out_info = LL_ATON_Output_Buffers_Info(&NN_Instance_Default);
+//  const LL_Buffer_InfoTypeDef *nn_in_info = LL_ATON_Input_Buffers_Info(&NN_Instance_Default);
   uint32_t nn_period_ms;
   uint32_t nn_period[2];
   uint8_t *nn_pipe_dst;
@@ -655,17 +676,23 @@ static void nn_thread_fct(void *arg)
   uint32_t ts;
   int ret;
   int i;
+    
+  const ai_handle acts[] = {
+    activations_1
+  };
 
-  /* Initialize Cube.AI/ATON ... */
-  LL_ATON_RT_RuntimeInit();
-  /* ... and model instance */
-  LL_ATON_RT_Init_Network(&NN_Instance_Default);
-
+  ai_network_create_and_init(&network, acts, NULL);
+  /* Reteive pointers to the model's input/output tensors */
+  ai_input = ai_network_inputs_get(network, NULL);
+  ai_output = ai_network_outputs_get(network, NULL);
+    
+#if 0    
   /* setup buffers size */
   nn_in_len = LL_Buffer_len(&nn_in_info[0]);
   assert(NN_OUT_NB == model_get_output_nb(nn_out_info));
   for (i = 0; i < NN_OUT_NB; i++)
     assert(LL_Buffer_len(&nn_out_info[i]) == nn_out_len_user[i]);
+#endif
 
   /*** App Loop ***************************************************************/
   nn_period[1] = HAL_GetTick();
@@ -673,6 +700,7 @@ static void nn_thread_fct(void *arg)
   nn_pipe_dst = bqueue_get_free(&nn_input_queue, 0);
   assert(nn_pipe_dst);
   CAM_NNPipe_Start(nn_pipe_dst, CMW_MODE_CONTINUOUS);
+
   while (1)
   {
     uint8_t *capture_buffer;
@@ -680,20 +708,30 @@ static void nn_thread_fct(void *arg)
     uint8_t *output_buffer;
     int i;
 
+    /* 時間計測 */
     nn_period[0] = nn_period[1];
     nn_period[1] = HAL_GetTick();
     nn_period_ms = nn_period[1] - nn_period[0];
-
+      
+    /* 入力バッファ取得 */
     capture_buffer = bqueue_get_ready(&nn_input_queue);
     assert(capture_buffer);
+    ai_input[0].data = AI_HANDLE_PTR(capture_buffer);
+      
+    /* 出力バッファ取得 */
     output_buffer = bqueue_get_free(&nn_output_queue, 1);
     assert(output_buffer);
     out[0] = output_buffer;
     for (i = 1; i < NN_OUT_NB; i++)
       out[i] = out[i - 1] + ALIGN_VALUE(nn_out_len_user[i - 1], 32);
+      
+    ai_output[0].data = AI_HANDLE_PTR(out[0]);
+    ai_output[1].data = AI_HANDLE_PTR(out[1]);
+    ai_output[2].data = AI_HANDLE_PTR(out[2]);
 
-    /* run ATON inference */
+    /* 時間計測 */
     ts = HAL_GetTick();
+#if 0      
      /* Note that we don't need to clean/invalidate those input buffers since they are only access in hardware */
     ret = LL_ATON_Set_User_Input_Buffer_Default(0, capture_buffer, nn_in_len);
     assert(ret == LL_ATON_User_IO_NOERROR);
@@ -703,7 +741,12 @@ static void nn_thread_fct(void *arg)
       ret = LL_ATON_Set_User_Output_Buffer_Default(i, out[i], nn_out_len_user[i]);
       assert(ret == LL_ATON_User_IO_NOERROR);
     }
+
     Run_Inference(&NN_Instance_Default);
+#endif
+
+    ret = ai_network_run(network, &ai_input[0], &ai_output[0]);
+  
     inf_ms = HAL_GetTick() - ts;
 
     /* release buffers */
@@ -820,7 +863,8 @@ static void pp_thread_fct(void *arg)
 
   (void)tracking_enabled;
   /* setup post process */
-  app_postprocess_init(&pp_params, &NN_Instance_Default);
+//  app_postprocess_init(&pp_params, &NN_Instance_Default);
+    app_postprocess_init(&pp_params, NULL);
   while (1)
   {
     uint8_t *output_buffer;
